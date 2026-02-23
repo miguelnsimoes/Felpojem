@@ -17,6 +17,7 @@ var can_parry = false
 var is_parried = false
 var enemy_name = ""
 var gliding = false
+var ultima_animacao = "baixo" 
 
 func _physics_process(_delta):
 	
@@ -107,28 +108,49 @@ func set_animation():
 	if atacando: 
 		return
 
-	if velocity.x > 0.1: 
+	if velocity.x < 0 and velocity.z == 0:
 		anim.flip_h = false
-	elif velocity.x < -0.1:
+	elif (velocity.x > 0.1 and velocity.z <= 0) or (velocity.x < -0.1 and velocity.z >= 0): 
 		anim.flip_h = true
+	elif (velocity.x < -0.1 and velocity.z <= 0) or (velocity.x > 0.1 and velocity.z >= 0):
+		anim.flip_h = false
 
-	var colidindo_com_parede = false
-	for i in get_slide_collision_count():
-		var colisao = get_slide_collision(i)
-		var objeto = colisao.get_collider()
-		if objeto is CSGBox3D or "Parede" in objeto.name:
-			if abs(colisao.get_normal().x) > 0.5 or abs(colisao.get_normal().z) > 0.5:
-				colidindo_com_parede = true
-
-	#orderm tem prioridade
-	if colidindo_com_parede:
-		anim.play("parada")
-	elif esta_agachado: 
-		anim.play("agachar") 
+	if esta_agachado: 
+		anim.play("agachar")
+		ultima_animacao = "baixo" 
+	
 	elif velocity.length() > 0.2:
-		anim.play("andar")
+		if not is_on_floor() and gliding:
+			anim.play("planar")
+		
+		elif velocity.z < -0.1 and abs(velocity.x) > 0.1:
+			anim.play("andar_cima_lado")
+			ultima_animacao = "cima_lado"
+			
+		elif velocity.z > 0.1 and abs(velocity.x) > 0.1:
+			anim.play("andar_baixo_lado")
+			ultima_animacao = "baixo_lado"
+			
+		elif velocity.z < -0.1:
+			anim.play("andar_cima")
+			ultima_animacao = "cima"
+			
+		elif velocity.z > 0.1:
+			anim.play("andar_baixo")
+			ultima_animacao = "baixo"
+			
+		else:
+			anim.play("andar")
+			ultima_animacao = "lado"
+
 	else:
-		anim.play("parada")
+		match ultima_animacao:
+			"cima": anim.play("parado_cima")
+			"baixo": anim.play("parado_baixo")
+			"lado": anim.play("parada") 
+			"cima_lado": anim.play("parado_cima_lado")
+			"baixo_lado": anim.play("parado_baixo_lado")
+			_: anim.play("parada")
 
 func executar_carimbo_especifico(cena):
 	var novo_carimbo = cena.instantiate()
