@@ -2,6 +2,7 @@ extends CharacterBody3D
 
 const SPEED = 5.0
 const SPEED_AGACHADO = 2.0
+const JUMP_VELOCITY = 4.5
 var vida = 10
  
 @export var cena_do_poder: PackedScene
@@ -14,6 +15,7 @@ var poder_equipado: PackedScene = null
 var can_parry = false
 var is_parried = false
 var enemy_name = ""
+var gliding = false
 
 func _physics_process(_delta):
 	
@@ -31,10 +33,25 @@ func _physics_process(_delta):
 			enemy.got_parried()
 		return 
 		
-		
 	if atacando:
 		return
 
+	var multiplierGravity = 1.0
+	var multiplierSpeed = 1.0
+
+	if not is_on_floor():
+		if gliding and velocity.y < 0:
+			multiplierGravity = 0.25
+		
+		velocity += get_gravity() * _delta * multiplierGravity
+
+	if Input.is_action_just_pressed("jump"):   
+		if is_on_floor():
+			velocity.y = JUMP_VELOCITY
+			gliding = false
+		elif velocity.y < 2.5:
+			gliding = true
+			
 	var velocidade_atual = SPEED
 	
 	if Input.is_action_pressed("agachar"):
@@ -47,8 +64,11 @@ func _physics_process(_delta):
 	var direcao = Vector3(input_dir.x, 0, input_dir.y)
 
 	if direcao != Vector3.ZERO:
-		velocity.x = direcao.x * velocidade_atual
-		velocity.z = direcao.z * velocidade_atual
+		if gliding and velocity.y < 0:
+			multiplierSpeed = 0.75
+			
+		velocity.x = direcao.x * velocidade_atual * multiplierSpeed
+		velocity.z = direcao.z * velocidade_atual * multiplierSpeed
 		area_ataque.position = direcao * 1.0
 	else:
 		velocity.x = move_toward(velocity.x, 0, velocidade_atual)
