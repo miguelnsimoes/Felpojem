@@ -8,6 +8,7 @@ var vida = 10
 @export var cena_do_poder: PackedScene
 @onready var anim = $AnimatedSprite3D 
 @onready var area_ataque = $AreaAtaque
+@onready var spotlight = $Light_Area
 
 var atacando = false
 var esta_agachado = false
@@ -33,6 +34,25 @@ func _physics_process(_delta):
 			enemy.got_parried()
 		return 
 		
+	#poder da luz	
+	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	var direcao_lanterna = Vector3(input_dir.x, 0, input_dir.y)
+
+	if direcao_lanterna.length() > 0:
+		spotlight.look_at(global_transform.origin + direcao_lanterna, Vector3.UP)
+
+	if Input.is_action_just_pressed("lanterna"):
+		spotlight.visible = !spotlight.visible
+		
+	if spotlight.visible:
+		var inimigos_na_luz = spotlight.get_overlapping_bodies()
+		for corpo in inimigos_na_luz:
+			if corpo.name == "shadow_enemy":
+				corpo.receber_dano() 
+
+	'''if spotlight.visible:
+		return'''
+
 	if atacando:
 		return
 
@@ -60,7 +80,6 @@ func _physics_process(_delta):
 	else:
 		esta_agachado = false
 
-	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	var direcao = Vector3(input_dir.x, 0, input_dir.y)
 
 	if direcao != Vector3.ZERO:
@@ -158,6 +177,7 @@ var inventario_aberto = false
 func _ready():
 	$Interface/FundoInventario.hide()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	spotlight.visible = false 
 
 func _input(event):
 	if event.is_action_pressed("abrir_inventario"):
@@ -200,6 +220,5 @@ func _atualizar_tela_inventario():
 		grade.add_child(botao)
 		
 		
-		
 
-	 	
+	 
