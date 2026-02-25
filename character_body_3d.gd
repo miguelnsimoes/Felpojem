@@ -4,11 +4,13 @@ const SPEED = 5.0
 const SPEED_AGACHADO = 2.0
 const JUMP_VELOCITY = 4.5
 var vida = 10
- 
+
 @export var cena_do_poder: PackedScene
 @onready var anim = $AnimatedSprite3D 
 @onready var area_ataque = $AreaAtaque
 @onready var spotlight = $Light_Area
+@onready var anim_luz = $AnimationPlayer 
+@onready var luz_aura = $Light_Area/OmniLight3D
 
 var atacando = false
 var esta_agachado = false
@@ -20,7 +22,7 @@ var gliding = false
 var ultima_animacao = "baixo" 
 
 func _physics_process(_delta):
-	
+
 	var input_guard = Input.is_action_just_pressed("defesa")
 	if input_guard:
 		print("tentou parry")
@@ -35,24 +37,26 @@ func _physics_process(_delta):
 			enemy.got_parried()
 		return 
 		
-	#poder da luz	
-	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-	var direcao_lanterna = Vector3(input_dir.x, 0, input_dir.y)
-
-	if direcao_lanterna.length() > 0:
-		spotlight.look_at(global_transform.origin + direcao_lanterna, Vector3.UP)
-
-	if Input.is_action_just_pressed("lanterna"):
-		spotlight.visible = !spotlight.visible
 		
-	if spotlight.visible:
+	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	
+	if Input.is_action_just_pressed("lanterna"):
+		if not luz_aura.visible:
+			luz_aura.visible = true
+			anim_luz.play("balanço_de_luz")
+		else:
+			anim_luz.play_backwards("balanço_de_luz")
+			await anim_luz.animation_finished
+			if not anim_luz.is_playing():
+				luz_aura.visible = false			
+
+
+	if luz_aura.visible and not anim_luz.is_playing():
 		var inimigos_na_luz = spotlight.get_overlapping_bodies()
 		for corpo in inimigos_na_luz:
-			if corpo.name == "shadow_enemy":
-				corpo.receber_dano() 
-
-	'''if spotlight.visible:
-		return'''
+			if corpo.name == "shadow_enemy" and corpo.has_method("receber_dano"):
+				corpo.receber_dano()
+		return
 
 	if atacando:
 		return
@@ -63,7 +67,7 @@ func _physics_process(_delta):
 	if not is_on_floor():
 		if gliding and velocity.y < 0:
 			multiplierGravity = 0.25
-		
+
 		velocity += get_gravity() * _delta * multiplierGravity
 
 	if Input.is_action_just_pressed("jump"):   
@@ -73,8 +77,9 @@ func _physics_process(_delta):
 		elif velocity.y < 2.5:
 			gliding = true
 			
+
 	var velocidade_atual = SPEED
-	
+
 	if Input.is_action_pressed("agachar"):
 		esta_agachado = true
 		velocidade_atual = SPEED_AGACHADO
@@ -102,7 +107,6 @@ func _physics_process(_delta):
 	if Input.is_action_just_pressed("carimbar"):
 		if poder_equipado != null:
 			executar_carimbo_especifico(poder_equipado)
-			
 
 func set_animation():
 	if atacando: 
@@ -122,7 +126,7 @@ func set_animation():
 	elif velocity.length() > 0.2:
 		if not is_on_floor() and gliding:
 			anim.play("planar")
-		
+
 		elif velocity.z < -0.1 and abs(velocity.x) > 0.1:
 			anim.play("andar_cima_lado")
 			ultima_animacao = "cima_lado"
@@ -173,7 +177,7 @@ func iniciar_ataque():
 func receber_dano(enemy_name_var):
 	enemy_name = enemy_name_var 
 	can_parry = true
-	
+
 	await get_tree().create_timer(0.1).timeout
 	can_parry = false
 
@@ -182,7 +186,7 @@ func receber_dano(enemy_name_var):
 		anim.modulate = Color(1, 0, 0)
 		await get_tree().create_timer(0.15).timeout
 		anim.modulate = Color(1, 1, 1)
-		
+
 		if vida <= 0:
 			morrer()
 
@@ -199,16 +203,16 @@ var inventario_aberto = false
 func _ready():
 	$Interface/FundoInventario.hide()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-	spotlight.visible = false 
+	luz_aura.visible = false 
 
 func _input(event):
 	if event.is_action_pressed("abrir_inventario"):
 		alternar_inventario()
-		
+
 
 func alternar_inventario():
 	inventario_aberto = !inventario_aberto
-	
+
 	if inventario_aberto:
 		$Interface/FundoInventario.show()
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -225,10 +229,9 @@ func adicionar_ao_inventario(dados):
 
 func _atualizar_tela_inventario():
 	var grade = $Interface/FundoInventario/GridContainer
-	
-	for n in grade.get_children(): #pra nao dar loop no item
+	for n in grade.get_children():
 		n.queue_free()
-	
+
 	for item in inventario:
 		var botao = Button.new()
 		botao.custom_minimum_size = Vector2(80, 80)
@@ -238,9 +241,4 @@ func _atualizar_tela_inventario():
 			botao.expand_icon = true 
 		else:
 			botao.text = item["nome"] 
-			
-		grade.add_child(botao)
-		
-		
-
-	 
+			grade.add_child(botao)
